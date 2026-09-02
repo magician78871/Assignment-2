@@ -2,80 +2,89 @@ import os
 import ast
 import operator
 import tokenize
+import enum
 
-sample_input = "3+5\n2+3*4\n-(3+4)\n--5\n(10-2)*3+-4/2\n3@5\n1/0\n"
-sample_output = """Input: 3+5\nTree:(+3 5)\nTokens:[NUM:3][OP:+][NUM:5][END]\nResult: 8\nInput: 2+3*4\nTree:(+2 (*3 4))\nTokens:[NUM:2][OP:+][NUM:3][OP:*][NUM:4][END]\nResult: 14\nInput: -(3+4)\nTree:(neg (+3 4))\nTokens:[OP:-][LPAREN:(][NUM:3][OP:+][NUM:4][RPAREN:)][END]\nResult: -7\nInput: --5\nTree:(neg (neg 5))\nTokens:[OP:-][OP:-][NUM:5][END]\nResult: 5\nInput: (10-2)*3+-4/2\nTree:(+ (* (neg 10 2) 3) (/ (neg 4) 2))\nTokens:[LPAREN:(][NUM:10][OP:-][NUM:2][RPAREN:)][OP:*][NUM:3][OP:+][OP:-][NUM:4][OP:/][NUM:2][END]\nResult: 20.0\nInput: 3@5\nTree:(@3 5)\nTokens:[NUM:3][OP:@][NUM:5][END]\nResult: Error\nInput: 1/0\nTree:(/1 0)\nTokens:[NUM:1][OP:/][NUM:0][END]\nResult: Error\n"""
+# Correctly handle five binary operators (+, -, *, /, %), exponentation ^, parenthesis
+BINARY_OPERATORS = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.truediv,
+    '%': operator.mod,
+    '^': operator.xor,
+}
 
-file_path = 'input.txt'
-with open(file_path, 'w') as f:
+# Handle unary negation and parenthesis (nested to depth)
+UNARY_OPERATORS = {
+    '-': operator.neg,
+    '(': lambda x: x,
+    ')': lambda x: x,
+}
+
+# Does not support unary +; produce an error
+if '+' in UNARY_OPERATORS: # Check if unary '+' is unexpectedly supported
+  raise Exception("Error: Unary '+' operator is explicitly not supported. Please remove it from UNARY_OPERATORS if it was added.")
+
+
+# Handle each level of operator precendence by its own function
+operator_precedence = { # Renamed to avoid conflict with function 'precedence'
+    '+': 1,
+    '-': 1,
+    '*': 2,
+    '/': 2,
+    '%': 2,
+    'unuary -': 3, # This usually implies a context-dependent parsing rule
+    '(': 3,
+    ')': 3,
+    '^': 4
+}
+
+# Tokenize math expressions from file
+def tokenize_math_expression(expr):
+  """
+  Tokenizes mathematical expression into numbers, operators, parentheses.
+  """
+  tokens = re.findall(r'\d+\.?\d*|[+\-*/%^()]', expr) # Using this regex tokenizes 3 + 5' as ['3', '+', '5'], '-(3 + 4)' as ['-', '(', '3', '+', '4', ')'],
+  # and '--5' as ['-', '-', '5'].
+  print(tokens) # Display tokens
+  return tokens
+
+# Define precedence function and op_taken as parameter to return a signle token
+def precedence(op_token): 
+  return operator_precedence.get(op_token, 0) # Calls the operator_precedence dictionary and return 0 for unknown/unhandled tokens
+
+def unary_op_function(op_token): # Function looks up in the `UNARY_OPERATORS` dictionary.
+# Was initially expr as a string but changed it to op_token to specify that a single token is returned
+  return UNARY_OPERATORS.get(op_token, None) # Returns 0 if none
+
+def main():
+  # Read mathematical expressions from input.txt (one per line)
+  sample_input = "3 + 5\n2 + 3 * 4\n-(3 + 4)\n--5\n(10 - 2) * 3 + -4 / 2\n3 @ 5\n1 / 0\n"
+
+  with open("input.txt", "w", encoding="utf-8") as f:
     f.write(sample_input)
-print(f"Sample input: \n{sample_input.strip()}")
+  print(f"Sample text input: \n{sample_input}")
 
-print()
+  # Display tokenized math expressions
+  print("\n" + "="*20, "Tokenized Math Expressions from Input file", "="*20)
+  with open("input.txt", "r", encoding="utf-8") as f:
+    tokenized_expressions = []
+    for line in f:
+      line = line.strip()
+      if not line: # Skip empty lines
+          continue
+      print() # Add space between token expressions
+      print(f"Tokenized expression: {line}")
+      
+      # Call the function and assign to variable tokens_for_line
+      tokens_for_line = tokenize_math_expression(line)
+      tokenized_expressions.append(tokens_for_line)
 
-with open('output.txt', 'w') as f:
-    f.write(sample_output)
-print(f"Sample output: \n{sample_output.strip()}")
-
-
-# Correctly tokenises all valid expressions from input file, including unary negation, parentheses, and operator precedence.
-def tokenize_expression(expression):
-    sample_input = "3+5\n2+3*4\n-(3+4)\n--5\n(10-2)*3+-4/2\n3@5\n1/0\n"
-    
-    # Assign the sample input to the expression variable
-    sample_input = expression.strip()
-    tokens = []
-    for token in tokenize.generate_tokens(lambda L=iter([sample_input]): next(L)):
-        if token.type == tokenize.NUMBER:
-            tokens.append(f"[NUM:{token.string}]")
-        elif token.type == tokenize.OP:
-            tokens.append(f"[OP:{token.string}]")
-        elif token.type == tokenize.NEWLINE:
-            tokens.append("[END]")
-        elif token.type == tokenize.LPAR:
-            tokens.append(f"[LPAREN:({token.string}]")
-        elif token.type == tokenize.RPAR:
-            tokens.append(f"[RPAREN:){token.string}]")
-    return ''.join(tokens)
-
-tokenized_output = tokenize_expression(sample_input)
-print(f"Tokenized output: \n{tokenized_output.strip()}")
+# Call the main function to execute the logic when the script runs
+if __name__ == '__main__':
+  main()
 
 
-# Recursive descent implements all precedence levels in input expressions, including unary negation and parentheses.
-# Recursive descent parser for all precedence levels in input expressions, including unary negation and parentheses.
-def parse_precedence(expression):
-    sample_input = "3+5\n2+3*4\n-(3+4)\n--5\n(10-2)*3+-4/2\n3@5\n1/0\n"
-    tokens = []
-    precedence_levels = {
-        1: ['+', '-'],
-        2: ['*', '/'],
-        3: ['@']  # Assuming '@' is a valid operator with the highest precedence
-    }
-    # Assign the sample input to the expression variable
-    # Assign the sample input to the expression variable
-    sample_input = expression.strip()
-    unary_ops = {'-': 'neg'}
-    parentheses = {'(': '(', ')': ')'}
-
-    for parse in expression:
-        if parse.type == tokenize.NUMBER:
-            yield f"[NUM:{parse.string}]"
-        elif parse.type == tokenize.OP:
-            op = parse.string
-            if op in unary_ops:
-                yield f"[OP:{op}]"
-            else:
-                yield f"[OP:{op}]"
-        elif parse.type == tokenize.LPAR:
-            yield f"[LPAREN:({parse.string}]"
-        elif parse.type == tokenize.RPAR:
-            yield f"[RPAREN:){parse.string}]"
-        elif parse.type == tokenize.NEWLINE:
-            yield "[END]"
-    return ''.join(tokens)
-parser = parse_precedence(sample_input)
-print(f"Parsed precedence output: \n{parser}")
 
 
 # Expression tree correct for all cases from output file, including unary negation, parentheses, and operator precedence.
