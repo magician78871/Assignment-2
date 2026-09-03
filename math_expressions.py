@@ -7,18 +7,7 @@ import re
 sample_input = "3+5\n2+3*4\n-(3+4)\n--5\n(10-2)*3+-4/2\n3@5\n1/0\n"
 sample_output = """Input: 3+5\nTree:(+3 5)\nTokens:[NUM:3][OP:+][NUM:5][END]\nResult: 8\nInput: 2+3*4\nTree:(+2 (*3 4))\nTokens:[NUM:2][OP:+][NUM:3][OP:*][NUM:4][END]\nResult: 14\nInput: -(3+4)\nTree:(neg (+3 4))\nTokens:[OP:-][LPAREN:(][NUM:3][OP:+][NUM:4][RPAREN:)][END]\nResult: -7\nInput: --5\nTree:(neg (neg 5))\nTokens:[OP:-][OP:-][NUM:5][END]\nResult: 5\nInput: (10-2)*3+-4/2\nTree:(+ (* (neg 10 2) 3) (/ (neg 4) 2))\nTokens:[LPAREN:(][NUM:10][OP:-][NUM:2][RPAREN:)][OP:*][NUM:3][OP:+][OP:-][NUM:4][OP:/][NUM:2][END]\nResult: 20.0\nInput: 3@5\nTree:(@3 5)\nTokens:[NUM:3][OP:@][NUM:5][END]\nResult: Error\nInput: 1/0\nTree:(/1 0)\nTokens:[NUM:1][OP:/][NUM:0][END]\nResult: Error\n"""
 
-# Correctly handle five binary operators (+, -, *, /, %), exponentation ^, parenthesis
-BINARY_OPERATORS = {
-    '+': operator.add,
-    '-': operator.sub,
-    '*': operator.mul,
-    '/': operator.truediv,
-    '%': operator.mod,
-    '^': operator.xor,
-}
-
 # Handle binary operators, unary negation and parenthesis (nested to depth)
-
 OPERATORS = {
     '+': operator.add,
     '-': operator.sub,
@@ -27,7 +16,6 @@ OPERATORS = {
     '%': operator.mod,
     '^': operator.xor,
 }
-
 
 # Handle each level of operator precendence by its own function
 operator_precedence = {
